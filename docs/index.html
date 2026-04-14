@@ -120,11 +120,48 @@
       transition: opacity 0.15s;
     }
     .btn:hover { opacity: 0.85; }
-    .btn-primary { background: #1565c0; color: #fff; border: none; }
+    .btn-primary { background: #1565c0; color: #fff; border: none; cursor: pointer; }
     .btn-secondary {
       background: transparent;
       color: #90caf9;
       border: 1px solid rgba(100,181,246,0.4);
+    }
+    .btn-haiku {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      color: #90caf9;
+      border: 1px solid rgba(100,181,246,0.4);
+      cursor: pointer;
+    }
+
+    #haiku-box {
+      display: none;
+      margin-top: 1.6rem;
+      background: rgba(100,181,246,0.06);
+      border: 1px solid rgba(100,181,246,0.25);
+      border-radius: 12px;
+      padding: 1.2rem 1.6rem;
+    }
+    #haiku-box h3 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: #90caf9;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+    }
+    #haiku-text {
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+      font-size: 1.15rem;
+      line-height: 2.0;
+      color: #e8eaf6;
+      white-space: pre-line;
+      text-align: center;
+    }
+    #haiku-loading {
+      text-align: center;
+      color: #90a4ae;
+      font-size: 0.9rem;
+      animation: pulse 1.5s ease-in-out infinite;
     }
 
     footer {
@@ -158,6 +195,13 @@
       <div class="actions">
         <a id="btn-hd" class="btn btn-primary" href="#" target="_blank" rel="noopener">🖼️ HD画像を開く</a>
         <a class="btn btn-secondary" href="https://apod.nasa.gov/" target="_blank" rel="noopener">🌐 APOD公式サイト</a>
+        <button class="btn btn-haiku" id="btn-haiku" onclick="generateHaiku()">🎋 俳句を生成</button>
+      </div>
+
+      <div id="haiku-box">
+        <h3>🎋 俳句</h3>
+        <div id="haiku-loading" style="display:none">詠んでいます…</div>
+        <div id="haiku-text"></div>
       </div>
     </div>
   </div>
@@ -217,6 +261,114 @@
   }
 
   loadAPOD();
+
+  // --- 俳句生成（フロントエンドのみ） ---
+  const SMALL_KANA = new Set([...'ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ']);
+  const FUNNY_ENDING = ['でござる','だゼ','ニャ','だよ','かな','だよね'];
+  const VOWELS = /[aeiouyAEIOUY]+/g;
+
+  function isJapanese(text) {
+    return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(text);
+  }
+
+  function splitToMoras(text) {
+    text = text.replace(/[\u3000\s]+/g, ' ')
+               .replace(/[！？!?。、,\.\(\)\[\]「」『』"'：:；;／\\\-＿=\+\*<>\t\n\r]/g, '');
+    const moras = [];
+    for (const ch of text) {
+      if (ch === ' ') continue;
+      if (SMALL_KANA.has(ch) && moras.length) moras[moras.length - 1] += ch;
+      else moras.push(ch);
+    }
+    return moras.filter(Boolean);
+  }
+
+  function composeHaikuFromMoras(moras) {
+    const targets = [5, 7, 5];
+    const lines = [];
+    let idx = 0;
+    for (const need of targets) {
+      const acc = [];
+      while (idx < moras.length && acc.length < need) acc.push(moras[idx++]);
+      if (acc.length === need) lines.push(acc.join(''));
+      else return null;
+    }
+    return lines.join('\n');
+  }
+
+  function generateHaikuJP(text) {
+    const moras = splitToMoras(text);
+    if (moras.length >= 17) {
+      const h = composeHaikuFromMoras(moras);
+      if (h) return Math.random() < 0.25 ? h + ' ' + FUNNY_ENDING[Math.random() * FUNNY_ENDING.length | 0] : h;
+    }
+    const pads = ['な','か','ね','よ','わ','の'];
+    const lines = [];
+    let ptr = 0;
+    for (const need of [5, 7, 5]) {
+      const acc = [];
+      while (acc.length < need && ptr < moras.length) acc.push(moras[ptr++]);
+      while (acc.length < need) acc.push(pads[Math.random() * pads.length | 0]);
+      lines.push(acc.join(''));
+    }
+    const h = lines.join('\n');
+    return Math.random() < 0.25 ? h + ' ' + FUNNY_ENDING[Math.random() * FUNNY_ENDING.length | 0] : h;
+  }
+
+  function countSyllables(word) {
+    const w = word.replace(/[^A-Za-z]/g, '').toLowerCase().replace(/(?:es|ed)$/, '');
+    if (!w) return 0;
+    const m = w.match(/[aeiouy]+/g);
+    return m ? m.length : 1;
+  }
+
+  function buildLineEN(target, words) {
+    const fillers = ['softly','quiet','spark','tiny','sleepy','cosmic','silly','strange','lonely','cheeky'];
+    const pool = [...words, ...fillers];
+    const used = [];
+    let total = 0, attempts = 0;
+    while (total < target && attempts++ < 50) {
+      const cand = pool[Math.random() * pool.length | 0];
+      const s = countSyllables(cand);
+      if (total + s <= target) { used.push(cand); total += s; }
+      else {
+        const small = pool.filter(w => countSyllables(w) <= target - total);
+        if (!small.length) break;
+        const sw = small[Math.random() * small.length | 0];
+        used.push(sw); total += countSyllables(sw);
+      }
+    }
+    while (total < target) { used.push(['a','oh','ha','so','sky','sun'][Math.random() * 6 | 0]); total++; }
+    const line = used.join(' ');
+    return Math.random() < 0.3 ? line + ' ' + FUNNY_ENDING[Math.random() * FUNNY_ENDING.length | 0] : line;
+  }
+
+  function generateHaikuEN(text) {
+    const words = [...new Set(text.match(/[A-Za-z0-9'\-]+/g) || [])].slice(0, 20);
+    const pool = words.length ? words : ['cosmos','star','moon','space','light'];
+    return [buildLineEN(5, pool), buildLineEN(7, pool), buildLineEN(5, pool)].join('\n');
+  }
+
+  function generateHaiku() {
+    const explanation = document.getElementById('apod-explanation').textContent;
+    const box = document.getElementById('haiku-box');
+    const textEl = document.getElementById('haiku-text');
+    const btn = document.getElementById('btn-haiku');
+
+    box.style.display = 'block';
+    btn.disabled = true;
+    textEl.textContent = '';
+
+    setTimeout(() => {
+      try {
+        const haiku = isJapanese(explanation) ? generateHaikuJP(explanation) : generateHaikuEN(explanation);
+        textEl.textContent = haiku;
+      } catch(e) {
+        textEl.textContent = 'エラー: ' + e.message;
+      }
+      btn.disabled = false;
+    }, 300);
+  }
 </script>
 </body>
 </html>
