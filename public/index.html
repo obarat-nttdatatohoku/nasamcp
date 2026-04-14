@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔭 NASA 今日の宇宙画像 (APOD)</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0e1a;
+      color: #e8eaf6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      padding: 1.5rem 2rem;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.02em; }
+    header span { font-size: 1.8rem; }
+
+    main {
+      width: 100%;
+      max-width: 860px;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    #loading {
+      text-align: center;
+      margin-top: 5rem;
+      opacity: 0.6;
+      font-size: 1.1rem;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+    #error-box {
+      display: none;
+      background: rgba(239,83,80,0.15);
+      border: 1px solid rgba(239,83,80,0.4);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 3rem;
+      text-align: center;
+      color: #ef9a9a;
+    }
+
+    #card {
+      display: none;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    #media-wrap {
+      position: relative;
+      width: 100%;
+      background: #000;
+      text-align: center;
+    }
+    #media-wrap img {
+      width: 100%;
+      max-height: 520px;
+      object-fit: contain;
+      display: block;
+    }
+    #media-wrap iframe {
+      width: 100%;
+      height: 480px;
+      border: none;
+    }
+
+    .info {
+      padding: 1.8rem 2rem 2rem;
+    }
+
+    .date-badge {
+      display: inline-block;
+      background: rgba(100,181,246,0.15);
+      border: 1px solid rgba(100,181,246,0.35);
+      color: #90caf9;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      margin-bottom: 0.9rem;
+    }
+
+    .info h2 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .copyright {
+      font-size: 0.82rem;
+      color: #90a4ae;
+      margin-bottom: 1.2rem;
+    }
+
+    .explanation {
+      font-size: 0.97rem;
+      line-height: 1.75;
+      color: #b0bec5;
+    }
+
+    .actions {
+      margin-top: 1.6rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.15s;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary {
+      background: #1565c0;
+      color: #fff;
+      border: none;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: #90caf9;
+      border: 1px solid rgba(100,181,246,0.4);
+    }
+
+    footer {
+      margin-top: auto;
+      padding: 1rem;
+      font-size: 0.78rem;
+      color: #546e7a;
+      text-align: center;
+    }
+    footer a { color: #78909c; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🔭</span>
+  <h1>NASA 今日の宇宙画像 &mdash; APOD</h1>
+</header>
+
+<main>
+  <div id="loading">📡 データを取得中…</div>
+
+  <div id="error-box">
+    <p id="error-msg">データの取得に失敗しました。</p>
+  </div>
+
+  <div id="card">
+    <div id="media-wrap"></div>
+    <div class="info">
+      <span class="date-badge" id="apod-date"></span>
+      <h2 id="apod-title"></h2>
+      <p class="copyright" id="apod-copyright"></p>
+      <p class="explanation" id="apod-explanation"></p>
+      <div class="actions">
+        <a id="btn-hd" class="btn btn-primary" href="#" target="_blank" rel="noopener">🖼️ HD画像を開く</a>
+        <a class="btn btn-secondary" href="https://apod.nasa.gov/" target="_blank" rel="noopener">🌐 APOD公式サイト</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Powered by <a href="https://api.nasa.gov/" target="_blank">NASA APOD API</a>
+</footer>
+
+<script>
+  async function loadAPOD() {
+    try {
+      const res = await fetch('/api/apod');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      renderAPOD(data);
+    } catch (err) {
+      document.getElementById('loading').style.display = 'none';
+      const box = document.getElementById('error-box');
+      document.getElementById('error-msg').textContent = `エラー: ${err.message}`;
+      box.style.display = 'block';
+    }
+  }
+
+  function renderAPOD(data) {
+    document.getElementById('loading').style.display = 'none';
+
+    // メディア
+    const wrap = document.getElementById('media-wrap');
+    if (data.media_type === 'video') {
+      wrap.innerHTML = `<iframe src="${data.url}" allowfullscreen></iframe>`;
+    } else {
+      const img = document.createElement('img');
+      img.src = data.hdurl || data.url;
+      img.alt = data.title;
+      wrap.appendChild(img);
+    }
+
+    document.getElementById('apod-date').textContent = data.date;
+    document.getElementById('apod-title').textContent = data.title;
+    document.getElementById('apod-explanation').textContent = data.explanation;
+
+    if (data.copyright) {
+      document.getElementById('apod-copyright').textContent = `© ${data.copyright.trim()}`;
+    }
+
+    const hdBtn = document.getElementById('btn-hd');
+    hdBtn.href = data.hdurl || data.url || '#';
+    if (!data.hdurl && data.media_type === 'video') hdBtn.style.display = 'none';
+
+    document.getElementById('card').style.display = 'block';
+    document.title = `🔭 ${data.title} — NASA APOD`;
+  }
+
+  loadAPOD();
+</script>
+</body>
+</html>
