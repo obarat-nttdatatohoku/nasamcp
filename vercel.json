@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/apod", "destination": "/api/apod.py" }
+    { "source": "/api/apod", "destination": "/api/apod.py" },
+    { "source": "/api/haiku", "destination": "/api/haiku.py" }
   ]
 }
