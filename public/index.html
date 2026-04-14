@@ -149,6 +149,42 @@
       border: 1px solid rgba(100,181,246,0.4);
     }
 
+    #haiku-box {
+      display: none;
+      margin-top: 1.6rem;
+      background: rgba(100,181,246,0.06);
+      border: 1px solid rgba(100,181,246,0.25);
+      border-radius: 12px;
+      padding: 1.2rem 1.6rem;
+    }
+    #haiku-box h3 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: #90caf9;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+    }
+    #haiku-text {
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+      font-size: 1.15rem;
+      line-height: 2.0;
+      color: #e8eaf6;
+      white-space: pre-line;
+      text-align: center;
+    }
+    #haiku-loading {
+      text-align: center;
+      color: #90a4ae;
+      font-size: 0.9rem;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .btn-haiku {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      color: #90caf9;
+      border: 1px solid rgba(100,181,246,0.4);
+    }
+
     footer {
       margin-top: auto;
       padding: 1rem;
@@ -181,9 +217,17 @@
       <h2 id="apod-title"></h2>
       <p class="copyright" id="apod-copyright"></p>
       <p class="explanation" id="apod-explanation"></p>
+
       <div class="actions">
         <a id="btn-hd" class="btn btn-primary" href="#" target="_blank" rel="noopener">🖼️ HD画像を開く</a>
         <a class="btn btn-secondary" href="https://apod.nasa.gov/" target="_blank" rel="noopener">🌐 APOD公式サイト</a>
+        <button class="btn btn-haiku" id="btn-haiku" onclick="generateHaiku()">🎋 俳句を生成</button>
+      </div>
+
+      <div id="haiku-box">
+        <h3>🎋 俳句</h3>
+        <div id="haiku-loading" style="display:none">詠んでいます…</div>
+        <div id="haiku-text"></div>
       </div>
     </div>
   </div>
@@ -192,7 +236,6 @@
 <footer>
   Powered by <a href="https://api.nasa.gov/" target="_blank">NASA APOD API</a>
 </footer>
-
 <script>
   async function loadAPOD() {
     try {
@@ -227,6 +270,7 @@
     document.getElementById('apod-title').textContent = data.title;
     document.getElementById('apod-explanation').textContent = data.explanation;
 
+
     if (data.copyright) {
       document.getElementById('apod-copyright').textContent = `© ${data.copyright.trim()}`;
     }
@@ -240,6 +284,33 @@
   }
 
   loadAPOD();
+
+  async function generateHaiku() {
+    const explanation = document.getElementById('apod-explanation').textContent;
+    if (!explanation) return;
+
+    const box = document.getElementById('haiku-box');
+    const loadingEl = document.getElementById('haiku-loading');
+    const textEl = document.getElementById('haiku-text');
+    const btn = document.getElementById('btn-haiku');
+
+    box.style.display = 'block';
+    loadingEl.style.display = 'block';
+    textEl.textContent = '';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/haiku?text=' + encodeURIComponent(explanation));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      textEl.textContent = data.haiku;
+    } catch (err) {
+      textEl.textContent = 'エラー: ' + err.message;
+    } finally {
+      loadingEl.style.display = 'none';
+      btn.disabled = false;
+    }
+  }
 </script>
 </body>
 </html>
